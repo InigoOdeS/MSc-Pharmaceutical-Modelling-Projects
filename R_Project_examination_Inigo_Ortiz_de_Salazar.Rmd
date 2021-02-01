@@ -1,0 +1,572 @@
+---
+title: "Final Project 19"
+author: "Iñigo Ortiz de Salazar"
+email: "inigo.ortizdesalazardiez.5573@student.uu.se"
+date: "2018-11-29"
+mainfont: 
+sansfont: 
+mathfont: 
+monofont: 
+fontsize: 
+output: 
+ html_document: 
+    code_folding: show
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+#set knitr, which enables to create dynamic R reports, combining coding chunks and other features (e. g. enables to knit it into a document)
+knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(width.cutoff = 60))
+```
+
+# Environment setup
+
+I am working as a modelling scientist at Big Pharma Inc in the Drug Metabolism and Pharmacokinetics group. BPI889 protease inhbitor is under development as a treatment againts HIV/AIDS, which is a follow-up compount to Indinavir. My 	main	task	is	 to	assess,	 statistically	and	graphically, whether	genetic	variations	affect the	elimination	of	BPI889,	investigate	the	potential	clinical	impact	of	genetic	correlation and create	a	supporting report	for the	clinical	team.
+
+## Load R Packages
+
+```{r load packages, message = FALSE}
+library(tidyr)    # used for putting data into long format
+library(knitr)    # used for creation of the report
+library(ggplot2)   # used for creating graphs, apart from the Basic R plot 
+```
+
+## Load the Data Sets
+
+#### Define the Pathway for the `SNP` Data Set
+
+```{r define SNP path}
+dir_SNP   <- "C:/Users/iñigo erabiltzailea/Desktop/R_Studio/Final_Project"
+file_SNP <- "stu19.csv"
+SNP <- paste(dir_SNP, file_SNP, sep = '/')
+```
+
+#### Import `SNP` Data Set
+
+```{r read-in SNP}
+data_SNP <- read.csv(SNP, header = TRUE, as.is = TRUE)
+```
+
+#### Define the Pathway for the `PK` Data Set
+
+```{r define PK path}
+dir_PK  <- "C:/Users/iñigo erabiltzailea/Desktop/R_Studio/Final_Project"
+file_PK <- "Big_Pharma_BPI889_data_200mg_19.csv"
+PK <- paste(dir_PK, file_PK, sep = '/')
+```
+
+#### Import `PK` Data Set
+
+```{r read-in PK}
+data_PK <- read.csv(PK, header = TRUE, as.is = TRUE, na.strings = ".")
+```
+
+# Data check-out
+This section should contain any data check-out.
+
+## Check Imported Data Sets
+### Structure of the `PK` data set
+
+```{r SNP structure}
+#data_SNP structure and class of each column
+str(data_SNP)
+```
+
+### Structure of the `PK` Data Set
+
+```{r cov structure}
+#data_PK structure and class of each column
+str(data_PK)
+```
+
+## Glance at the Data Sets
+### Head of the `SNP` Data Set
+
+```{r SNP head table}
+# first five rows of the data_SNP
+head_SNP <- head(data_SNP, n = 5)
+kable(head_SNP, align = "c", row.names = FALSE)
+```
+
+### Head of the `PK` Data Set
+
+```{r PK head table}
+# first five rows of the data_PK
+head_PK <- head(data_PK, n = 5)
+kable(head_PK, align = "c", row.names = FALSE)
+```
+
+# Data management 
+Contains all data manipulation performed.
+
+##`SNP` data set
+
+### Rename first column to ID in the data set
+
+```{r rename first column ID}
+# rename first column to ID in SNP data set
+colnames(data_SNP)[1] <- "ID"
+```
+
+### Factorize data set columns
+
+```{r factorize SNP data set columns}
+#factorize the columns values of the SNP data set 
+data_SNP$T134A <- factor(x = data_SNP$T134A, levels = c(0, 1, 2),
+                         labels = c("wildtype", "heterozygous", "homozygous"))
+data_SNP$A443G <- factor(x = data_SNP$A443G, levels = c(0, 1, 2),
+                         labels = c("wildtype", "heterozygous", "homozygous"))
+data_SNP$G769C <- factor(x = data_SNP$G769C, levels = c(0, 1, 2),
+                         labels = c("wildtype", "heterozygous", "homozygous"))
+data_SNP$G955C <- factor(x = data_SNP$G955C, levels = c(0, 1, 2),
+                         labels = c("wildtype", "heterozygous", "homozygous"))
+data_SNP$A990C <- factor(x = data_SNP$A990C, levels = c(0, 1, 2),
+                         labels = c("wildtype", "heterozygous", "homozygous"))
+data_SNP$G1051A <- factor(x = data_SNP$G1051A, levels = c(0, 1, 2),
+                         labels = c("wildtype", "heterozygous", "homozygous"))
+data_SNP$G1078T <- factor(x = data_SNP$G1078T, levels = c(0, 1, 2),
+                         labels = c("wildtype", "heterozygous", "homozygous"))
+data_SNP$T1941A <- factor(x = data_SNP$T1941A, levels = c(0, 1, 2),
+                         labels = c("wildtype", "heterozygous", "homozygous"))
+data_SNP$T2138C <- factor(x = data_SNP$T2138C, levels = c(0, 1, 2),
+                         labels = c("wildtype", "heterozygous", "homozygous"))
+data_SNP$G2638T <- factor(x = data_SNP$G2638T, levels = c(0, 1, 2),
+                         labels = c("wildtype", "heterozygous", "homozygous"))
+```
+
+##`PK` data set
+
+### Rename first column to ID 
+
+```{r rename first column PK}
+# rename first column to ID in PK data set
+colnames(data_PK)[1:11] <- c("ID", "0.5", "1", "2", "3", "6", "12", "24", "SEX", "WT", "HT")
+```
+
+### Estimate missing values in data set
+
+```{r calculate missing values}
+#Caculation of k value, which corresponds to the slope
+k1 <- -(log(data_PK[1, 7]) - log(data_PK[1, 6]))/(12 - 6)
+k5 <- -(log(data_PK[5, 7]) - log(data_PK[5, 6]))/(12 - 6)
+k13 <- -(log(data_PK[13, 7]) - log(data_PK[13, 6]))/(12 - 6)
+#Calculation of concentration at 24 h
+data_PK[1, 8] <- data_PK[1, 7]*exp(-k1*(24 - 12))
+data_PK[5, 8] <- data_PK[5, 7]*exp(-k1*(24 - 12))
+data_PK[13, 8] <- data_PK[13, 7]*exp(-k1*(24 - 12))
+```
+
+`BMI`, `CBMI`and `FFM` columns are going to be created in order to make covariate data clearer.
+
+### Create the `BMI` Column
+
+```{r bmi calculation}
+data_PK$BMI <- data_PK$WT/((data_PK$HT/100)^2)
+data_PK$BMI <- round(data_PK$BMI, 2)
+```
+
+### Create the `CBMI` Column
+
+```{r cbmi calculation}
+data_PK$CBMI <- ifelse(data_PK$BMI < 18.5, 1,
+                        ifelse(data_PK$BMI < 25, 2,
+                               ifelse(data_PK$BMI < 30, 3, 4)))
+                        
+  
+data_PK$CBMI <- factor(x = data_PK$CBMI,
+                        levels = c(1, 2, 3, 4),
+                        labels = c("Underweight", "Normal", "Overweight", "Obese")
+                        )
+table(data_PK$CBMI)
+```
+
+### Create the `FFM` Column
+
+```{r create fat free mass}
+data_PK$FFM <- ifelse(
+  data_PK$SEX == "M",
+        (42.92 * ((data_PK$HT/100) ^ 2)) * (data_PK$WT/(30.93 * ((data_PK$HT/100)^2) + data_PK$WT)),
+        (37.99 * ((data_PK$HT/100) ^ 2)) * (data_PK$WT/(35.98 * ((data_PK$HT/100)^2) + data_PK$WT)))
+                       
+data_PK$FFM <- round(data_PK$FFM, 1)
+```
+
+# Pharmacokinetic Calculations
+Contains relevant calculations of PK parameters.
+
+## AUC calculations and creation of `AUC`column
+
+```{r calculation of AUC}
+#calculation of AUC (area under the curve) using the trapezoid rule
+data_PK$AUC <- 0 #in this vector is going to be added the area of the concentration corresponding from each time point to the following
+for (i in 3:8) {
+  w <- as.numeric(colnames(data_PK[i])) - as.numeric(colnames(data_PK[i - 1])) #calculates the width from each data point to the next one
+  data_PK$AUC <- data_PK$AUC + ((data_PK[i] + data_PK[i - 1])*w/2) #creates a new column in data_PK for AUC
+}
+k <- -(log(data_PK$`24`) - log(data_PK$`12`))/(24 - 12) #calculates the slope
+data_PK$AUC <- data_PK$AUC + data_PK$`24`/k  #adds to the newly formed column AUC the estimation from 24 to infinite
+data_PK$AUC <- as.vector(data_PK$AUC[,1]) #converts the AUC column to vector, because AUC was before a data frame
+```
+
+## Elimination: CL calculation and creation of `CL`column
+
+```{r calculation of CL}
+#calculation of clearance
+data_PK$CL <- 200/data_PK$AUC #AUC is used to calculate CL and is added in a new column 
+```
+
+## Clinical Impact: Cav calculation and creation of `Cav`columns
+
+```{r calculation of Cav}
+#calculation of Cav (average concentration) for 200, 400 and 800 mg. Cavs for each concentration is added in a new column
+data_PK$Cav_200 <- (200*0.9)/(data_PK$CL*24) 
+data_PK$Cav_400 <- (400*0.9)/(data_PK$CL*24)
+data_PK$Cav_800 <- (800*0.9)/(data_PK$CL*24)
+```
+
+# Data summary
+Contains the numerical data exploration for the project team.
+
+## Gather the `PK`Data Set by TIME
+
+```{r time varying summary PK}
+data_PK <- gather(data = data_PK, key = TIME, value = CONC, -ID, -HT, -WT, -SEX, -BMI, -CBMI, -FFM, -AUC, -CL, -Cav_200, -Cav_400, -Cav_800)
+```
+
+## Merge `SNP` and `PK` Data Sets
+
+```{r merge SNP and PK}
+#combine the data: data_SNP and data_PK by ID
+data_all <- merge(data_SNP, data_PK, by = "ID")
+```
+
+## Evaluate the Merge
+
+```{r str and head of data_all}
+#Check if the merge of SNP and PK data was performed correctly
+str(data_all)
+head_data_all <- head(data_all, n = 5)
+kable(x = head_data_all,
+      align = 'c',
+      row.names = FALSE,
+      caption = 'Head of all data set')
+```
+
+## Summary of Time Varying Columns
+
+```{r summary of time varying columns}
+summary(data_all$TIME)
+summary(data_all$CONC)
+```
+
+## Summary of the Continuous Variables
+
+```{r summary non-time varying continuous}
+summary(data_all$SEX)
+summary(data_all$WT)
+summary(data_all$HT)
+summary(data_all$BMI)
+summary(data_all$CBMI)
+summary(data_all$FFM)
+```
+## Summary of the Pharmacokinetic Parameters
+
+```{r summary pharmacokinetic parameters}
+summary(data_all$AUC)
+summary(data_all$CL)
+summary(data_all$Cav_200)
+summary(data_all$Cav_400)
+summary(data_all$Cav_800)
+```
+
+# Graphical exploration
+Contains the graphical data exploration for the project team.
+
+## Concentration vs time  of the `PK`data set
+Apart from representing how concentration varies through time for each patient, it also enables to check if the estimated missing values correlate correctly.
+
+```{r log graph}
+#create a log graph
+plot(x = data_PK$TIME, y = data_PK$CONC, type = 'n', 
+     xlab = "Time (h)",
+     ylab = "Concentration (ng/ml)",
+     ylim = c(0, 4),
+     xlim = c(0, 24))
+ for (n in unique(data_PK$ID)) {
+  lines(x = data_PK$TIME[data_PK$ID == n],
+        y = data_PK$CONC[data_PK$ID == n])
+}
+legend('topright', legend = c(data_PK$ID))
+```
+The estimated missing values correlate correctly. 
+
+## Histograms
+
+```{r histograms, fig.height = 5, fig.width = 5}
+par(mfrow = c(3, 2))
+for (cov in c('WT', 'HT', 'BMI', 'FFM', 'CL', 'AUC')) { 
+  hist(data_PK[ ,cov],
+       main = cov)
+  }
+```
+BMI follows a Gamma distribution.
+CL follows a Beta distribution.
+AUC follows a Gamma distribution. 
+
+##Box plots
+
+###Covariates' boxplots
+To check for the frquencyies of each type in each covariate.
+
+```{r covariates boxplots}
+par(mfrow = c(2, 2)) 
+boxplot(WT~CBMI, data = data_all, main = 'CBMI vs WT')
+boxplot(HT~CBMI, data = data_all, main = 'CBMI vs HT')
+boxplot(FFM~SEX, data = data_all, main = 'SEX vs FFM')
+``` 
+
+###SNPs' boxplots
+Base on the SNP results it can be estimated how many ttest will be needed to perform for each mutation, depending if the have significant frequency of wt, heterozygous or homozygous.   
+
+```{r SNPs boxplots}
+par(mfrow = c(2, 2)) 
+boxplot(CL~T134A, data = data_all, main = 'T134A vs CL')
+boxplot(CL~A443G, data = data_all, main = 'A443G vs CL')
+boxplot(CL~G769C, data = data_all, main = 'G769C vs CL')
+boxplot(CL~G955C, data = data_all, main = 'G955C vs CL')
+boxplot(CL~A990C, data = data_all, main = 'A990C vs CL')
+boxplot(CL~G1051A, data = data_all, main = 'G1051A vs CL')
+boxplot(CL~G1078T, data = data_all, main = 'G1078T vs CL')
+boxplot(CL~T1941A, data = data_all, main = 'T1941A vs CL')
+boxplot(CL~T2138C, data = data_all, main = 'T2138C vs CL')
+boxplot(CL~G2638T, data = data_all, main = 'G2638T vs CL')
+```
+"A443G", "G1051A", "G1078T" have significant frequency for wt, he and ho, so three two sample ttest will be performed for each mutation.
+
+T134A", "T1941A", "T2138C" have significant frequency for wt and he, but not for ho, becasue there is just one value, and it needs to be more than 1 in order to be significant. Therefore one two sample ttest will be performed between wt and he and two one sample ttest between he and ho and wt and ho. 
+
+"G769C","G955C", "G2638T" have significant frequency only for wt and he, with no a signle value for ho. So one two sample ttest will be performed for each mutation.
+
+"A990C" just has significant frequency only for he, with a signle value for wt. So one one sample ttest will be performed.
+
+# Covariate testing of PK parameters
+Contain relevant statistical testing of PK parameters and subject demographics.
+
+```{r SNPs ttest}
+# creates empty vectors for each type of comparasion in the ttest
+wt_he <- vector()
+he_ho <- vector()
+wt_ho <- vector()
+#foor loops for each mutation depending on the frquency of the alleles
+for (snp in c("A443G", "G1051A", "G1078T")) { 
+  wt_he <- t.test(x = unique(data_all$CL[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$CL[data_all[[snp]] == "heterozygous"]))
+  he_ho <- t.test(x = unique(data_all$CL[data_all[[snp]] == "heterozygous"]),
+                 y = unique(data_all$CL[data_all[[snp]] == "homozygous"]))
+  wt_ho <- t.test(x = unique(data_all$CL[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$CL[data_all[[snp]] == "homozygous"]))
+  print(snp) #print name of the SNP
+  print(wt_he) #print ttest results between wt and he for each SNP
+  print(he_ho) #print ttest results between he and ho for each SNP
+  print(wt_ho) #print ttest results between wt and ho for each SNP
+  }
+for (snp in c("T134A", "T1941A", "T2138C")) {
+  wt_he <- t.test(x = unique(data_all$CL[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$CL[data_all[[snp]] == "heterozygous"]))
+  he_ho <- t.test(x = unique(data_all$CL[data_all[[snp]] == "heterozygous"]),
+                 mu = 10.757952) #in one sample ttest y value should be a number and mu argument is to assigned that value
+  wt_ho <- t.test(x = unique(data_all$CL[data_all[[snp]] == "wildtype"]),
+                 mu = 10.757952) #in one sample ttest y value should be a number and mu argument is to assigned that value
+  print(snp) #print name of the SNP
+  print(wt_he) #print ttest results between wt and he for each SNP
+  print(he_ho) #print ttest results between he and ho for each SNP
+  print(wt_ho) #print ttest results between wt and ho for each SNP
+}
+for (snp in c("G769C","G955C", "G2638T")) {  
+  wt_he <- t.test(x = unique(data_all$CL[data_all[[snp]] == "wildtype"]),
+                  y = unique(data_all$CL[data_all[[snp]] == "heterozygous"]))
+  print(snp)  #print name of the SNP
+  print(wt_he) #print ttest results between wt and he for each SNP
+}
+  wt_hep <- wt_he$p.value
+for (snp in c("A990C")) {
+  he_wt <- t.test(x = unique(data_all$CL[data_all[[snp]] == "heterozygous"]),
+                  mu = 10.471184)
+  wt_hep <- wt_he$p.value
+  print(snp) #print name of the SNP
+  print(wt_he) #print ttest results between wt and ho for each SNP
+}
+```
+The results indicate there is no significant difference in CL between all the alleles of each mutation, with a 95% confidence interval. 
+
+# Assessment of clinical impact
+Contains relevant evaluation of the clinical impact of the relationships identified in section above.
+
+Even if results from CL didn't show any significant mutation this section was performed with the purpose of checking how different doses affect the impact SNPs have on the Cav. 
+
+```{r clinical impact ttest 200 mg}
+wt_he200 <- vector()
+he_ho200 <- vector()
+wt_ho200 <- vector()
+wt_hep200 <- vector()
+he_hop200 <- vector()
+wt_hop200 <- vector()
+for (snp in c("A443G", "G1051A", "G1078T")) {
+  wt_he200 <- t.test(x = unique(data_all$Cav_200[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$Cav_200[data_all[[snp]] == "heterozygous"]))
+  he_ho200 <- t.test(x = unique(data_all$Cav_200[data_all[[snp]] == "heterozygous"]),
+                 y = unique(data_all$Ca_200[data_all[[snp]] == "homozygous"]))
+  wt_ho200 <- t.test(x = unique(data_all$Cav_200[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$Cav_200[data_all[[snp]] == "homozygous"]))
+  wt_hep200 <- wt_he200$p.value
+  he_hop200 <- he_ho200$p.value
+  wt_hop200 <- wt_ho200$p.value
+  print(snp)
+  print(wt_he200)
+  print(he_ho200)
+  print(wt_ho200)
+  }
+for (snp in c("T134A", "T1941A", "T2138C")) {
+  wt_he200 <- t.test(x = unique(data_all$Cav_200[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$Cav_200[data_all[[snp]] == "heterozygous"]))
+  he_ho200 <- t.test(x = unique(data_all$Cav_200[data_all[[snp]] == "heterozygous"]),
+                 mu = 10.757952)
+  wt_ho200 <- t.test(x = unique(data_all$Cav_200[data_all[[snp]] == "wildtype"]),
+                 mu = 10.757952)
+  wt_hep200 <- wt_he200$p.value
+  he_hop200 <- he_ho200$p.value
+  wt_hop200 <- wt_ho200$p.value
+  print(snp)
+  print(wt_he200)
+  print(he_ho200)
+  print(wt_ho200)
+}
+for (snp in c("G769C","G955C", "G2638T")) {  
+  wt_he200 <- t.test(x = unique(data_all$Cav_200[data_all[[snp]] == "wildtype"]),
+                  y = unique(data_all$Cav_200[data_all[[snp]] == "heterozygous"]))
+  print(snp)
+  print(wt_he200)
+}
+  wt_hep200 <- wt_he200$p.value
+for (snp in c("A990C")) {
+  he_wt200 <- t.test(x = unique(data_all$Cav_200[data_all[[snp]] == "heterozygous"]),
+                  mu = 10.471184)
+  wt_hep200 <- wt_he200$p.value
+  print(snp)
+  print(wt_he200)
+}
+```
+All one sample ttest show significance. However, as the value of one of the comparators is a just a single one, it can not be taken into account. However, it may be argued that it needs to be explore this relationship further, by trying to obtained more data for the comparator in question. 
+
+```{r clinical impact ttest 400 mg}
+wt_he400 <- vector()
+he_ho400 <- vector()
+wt_ho400 <- vector()
+wt_hep400 <- vector()
+he_hop400 <- vector()
+wt_hop400 <- vector()
+for (snp in c("A443G", "G1051A", "G1078T")) {
+  wt_he400 <- t.test(x = unique(data_all$Cav_400[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$Cav_400[data_all[[snp]] == "heterozygous"]))
+  he_ho400 <- t.test(x = unique(data_all$Cav_400[data_all[[snp]] == "heterozygous"]),
+                 y = unique(data_all$Ca_400[data_all[[snp]] == "homozygous"]))
+  wt_ho400 <- t.test(x = unique(data_all$Cav_400[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$Cav_400[data_all[[snp]] == "homozygous"]))
+  wt_hep400 <- wt_he400$p.value
+  he_hop400 <- he_ho400$p.value
+  wt_hop400 <- wt_ho400$p.value
+  print(snp)
+  print(wt_he400)
+  print(he_ho400)
+  print(wt_ho400)
+  }
+for (snp in c("T134A", "T1941A", "T2138C")) {
+  wt_he400 <- t.test(x = unique(data_all$Cav_400[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$Cav_400[data_all[[snp]] == "heterozygous"]))
+  he_ho400 <- t.test(x = unique(data_all$Cav_400[data_all[[snp]] == "heterozygous"]),
+                 mu = 10.757952)
+  wt_ho400 <- t.test(x = unique(data_all$Cav_400[data_all[[snp]] == "wildtype"]),
+                 mu = 10.757952)
+  wt_hep400 <- wt_he400$p.value
+  he_hop400 <- he_ho400$p.value
+  wt_hop400 <- wt_ho400$p.value
+  print(snp)
+  print(wt_he400)
+  print(he_ho400)
+  print(wt_ho400)
+}
+for (snp in c("G769C","G955C", "G2638T")) {  
+  wt_he400 <- t.test(x = unique(data_all$Cav_400[data_all[[snp]] == "wildtype"]),
+                  y = unique(data_all$Cav_400[data_all[[snp]] == "heterozygous"]))
+  print(snp)
+  print(wt_he400)
+}
+  wt_hep <- wt_he$p.value
+for (snp in c("A990C")) {
+  he_wt400 <- t.test(x = unique(data_all$Cav_400[data_all[[snp]] == "heterozygous"]),
+                  mu = 10.471184)
+  wt_hep400 <- wt_he400$p.value
+  print(snp)
+  print(wt_he400)
+}
+```
+All one sample ttest show significance. However, as the value of one of the comparators is a just a single one, it can not be taken into account. However, it may be argued that it needs to be explore this relationship further, by trying to obtained more data for the comparator in question.
+
+```{r clinical impact ttest 800 mg}
+wt_he800 <- vector()
+he_ho800 <- vector()
+wt_ho800 <- vector()
+wt_hep800 <- vector()
+he_hop800 <- vector()
+wt_hop800 <- vector()
+for (snp in c("A443G", "G1051A", "G1078T")) {
+  wt_he800 <- t.test(x = unique(data_all$Cav_800[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$Cav_800[data_all[[snp]] == "heterozygous"]))
+  he_ho800 <- t.test(x = unique(data_all$Cav_800[data_all[[snp]] == "heterozygous"]),
+                 y = unique(data_all$Ca_800[data_all[[snp]] == "homozygous"]))
+  wt_ho800 <- t.test(x = unique(data_all$Cav_800[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$Cav_800[data_all[[snp]] == "homozygous"]))
+  wt_hep800 <- wt_he800$p.value
+  he_hop800 <- he_ho800$p.value
+  wt_hop800 <- wt_ho800$p.value
+  print(snp)
+  print(wt_he800)
+  print(he_ho800)
+  print(wt_ho800)
+  }
+for (snp in c("T134A", "T1941A", "T2138C")) {
+  wt_he800 <- t.test(x = unique(data_all$Cav_800[data_all[[snp]] == "wildtype"]),
+                 y = unique(data_all$Cav_800[data_all[[snp]] == "heterozygous"]))
+  he_ho800 <- t.test(x = unique(data_all$Cav_800[data_all[[snp]] == "heterozygous"]),
+                 mu = 10.757952)
+  wt_ho800 <- t.test(x = unique(data_all$Cav_800[data_all[[snp]] == "wildtype"]),
+                 mu = 10.757952)
+  wt_hep800 <- wt_he800$p.value
+  he_hop800 <- he_ho800$p.value
+  wt_hop800 <- wt_ho800$p.value
+  print(snp)
+  print(wt_he800)
+  print(he_ho800)
+  print(wt_ho800)
+}
+for (snp in c("G769C","G955C", "G2638T")) {  
+  wt_he800 <- t.test(x = unique(data_all$Cav_800[data_all[[snp]] == "wildtype"]),
+                  y = unique(data_all$Cav_800[data_all[[snp]] == "heterozygous"]))
+  print(snp)
+  print(wt_he800)
+}
+  wt_hep800 <- wt_he800$p.value
+for (snp in c("A990C")) {
+  he_wt800 <- t.test(x = unique(data_all$Cav_800[data_all[[snp]] == "heterozygous"]),
+                  mu = 10.471184)
+  wt_hep800 <- wt_he800$p.value
+  print(snp)
+  print(wt_he800)
+}
+```
+All one sample ttest show significance. However, as the value of one of the comparators is a just a single one, it can not be taken into account. However, it may be argued that it needs to be explore this relationship further, by trying to obtained more data for the comparator in question.
